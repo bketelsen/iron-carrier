@@ -147,7 +147,8 @@ impl Synchronizer {
         peer.start_sync().await?;
 
         for (alias, path) in &config.paths {
-            let (hash, mut local_files) = fs::get_files_with_hash(path, alias).await?;
+            let (hash, mut local_files) =
+                fs::get_files_with_hash(path, &config.ignore, alias).await?;
             if !peer.need_to_sync(&alias, hash) {
                 continue;
             }

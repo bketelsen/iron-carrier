@@ -15,6 +15,13 @@ fn default_watcher_debounce() -> u64 {
     10
 }
 
+// Represents file names and paths that should be ignored
+#[derive(Clone, PartialEq, Deserialize)]
+pub struct Ignore {
+    pub name: Option<Vec<String>>,
+    pub path: Option<Vec<String>>,
+}
+
 const MAX_PORT: u32 = 65535;
 /// Represents the configuration for the current machine
 #[derive(Deserialize)]
@@ -26,6 +33,10 @@ pub struct Config {
     /// contains the address for the other peers  
     /// in the format IPV4:PORT (**192.168.1.1:9090**)
     pub peers: Option<Vec<String>>,
+
+    /// contains files and paths to ignore
+    /// with glob support
+    pub ignore: Ignore,
 
     /// Port to listen to connections, defaults to 8090
     #[serde(default = "default_port")]

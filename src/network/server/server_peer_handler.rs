@@ -64,13 +64,13 @@ where
             .paths
             .get(alias)
             .ok_or_else(|| IronCarrierError::AliasNotAvailable(alias.to_owned()))?;
-        crate::fs::walk_path(path, alias)
+        crate::fs::walk_path(path, &self.config.ignore, alias)
             .await
             .map_err(|_| IronCarrierError::IOReadingError)
     }
 
     async fn server_sync_hash(&self) -> RpcResult<HashMap<String, u64>> {
-        crate::fs::get_hash_for_alias(&self.config.paths)
+        crate::fs::get_hash_for_alias(&self.config.paths, &self.config.ignore)
             .await
             .map_err(|_| IronCarrierError::IOReadingError)
     }

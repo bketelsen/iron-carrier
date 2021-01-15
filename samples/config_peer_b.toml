@@ -1,7 +1,17 @@
-port = 8091
 peers = [
-    "127.0.0.1:8090"
+    "10.0.1.39:8090"
 ]
 
 [paths]
 a = "./samples/peer_b"
+
+[ignore]
+name = [
+    "*~",
+    ".*~"
+]
+path = [
+    "*node_modules*",
+    "*target*"
+]
+

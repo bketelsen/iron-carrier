@@ -1,5 +1,6 @@
 //! This module is responsible for handling file system operations
 
+use glob::Pattern;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ord,
@@ -9,9 +10,10 @@ use std::{
     time::Duration,
     time::SystemTime,
 };
+
 use tokio::fs::{self, File};
 
-use crate::{config::Config, deletion_tracker::DeletionTracker, IronCarrierError};
+use crate::{config::Config, config::Ignore, deletion_tracker::DeletionTracker, IronCarrierError};
 
 /// Holds the information for a file inside a mapped folder  
 ///
@@ -140,7 +142,11 @@ impl Ord for FileInfo {
 ///
 /// This function will look for deletes files in the [DeletionTracker] log and append all entries to the return list  
 /// files with name or extension `.ironcarrier` will be ignored
-pub async fn walk_path<'a>(root_path: &Path, alias: &'a str) -> crate::Result<Vec<FileInfo>> {
+pub async fn walk_path<'a>(
+    root_path: &Path,
+    ignore: &Ignore,
+    alias: &'a str,
+) -> crate::Result<Vec<FileInfo>> {
     let mut paths = vec![root_path.to_owned()];
 
     let deletion_tracker = DeletionTracker::new(root_path);
@@ -160,6 +166,9 @@ pub async fn walk_path<'a>(root_path: &Path, alias: &'a str) -> crate::Result<Ve
                 continue;
             }
 
+            if is_ignored(&path, &ignore) {
+                continue;
+            }
             if path.is_dir() {
                 paths.push(path);
                 continue;
@@ -182,9 +191,10 @@ pub async fn walk_path<'a>(root_path: &Path, alias: &'a str) -> crate::Result<Ve
 /// This function returns the result of [walk_path] along with the hash for the file list
 pub async fn get_files_with_hash<'a>(
     path: &Path,
+    ignore: &Ignore,
     alias: &'a str,
 ) -> crate::Result<(u64, Vec<FileInfo>)> {
-    let files = walk_path(path, alias).await?;
+    let files = walk_path(path, ignore, alias).await?;
     let hash = crate::crypto::calculate_hash(&files);
 
     log::debug!(
@@ -200,11 +210,12 @@ pub async fn get_files_with_hash<'a>(
 /// This function will return a [HashMap] containing the alias as key and the hash as value
 pub async fn get_hash_for_alias(
     alias_path: &HashMap<String, PathBuf>,
+    ignore: &Ignore,
 ) -> crate::Result<HashMap<String, u64>> {
     let mut result = HashMap::new();
 
     for (alias, path) in alias_path {
-        let (hash, _) = get_files_with_hash(path.as_path(), alias).await?;
+        let (hash, _) = get_files_with_hash(path.as_path(), ignore, alias).await?;
         result.insert(alias.to_string(), hash);
     }
 
@@ -288,6 +299,29 @@ pub fn is_special_file(path: &Path) -> bool {
         .unwrap_or_default()
 }
 
+/// Returns true if `path` matches ignore list
+pub fn is_ignored(path: &Path, ignore: &Ignore) -> bool {
+    if let Some(paths) = &ignore.path {
+        for pat in paths {
+            if Pattern::new(&pat).unwrap().matches(path.to_str().unwrap()) {
+                log::debug!("ignoring {:?}, matches path {:?}", path, pat);
+                return true;
+            }
+        }
+    }
+    if let Some(names) = &ignore.name {
+        for pat in names {
+            if Pattern::new(&pat)
+                .unwrap()
+                .matches(path.file_name().unwrap().to_str().unwrap())
+            {
+                log::debug!("ignoring {:?}, matches file{:?}", path, pat);
+                return true;
+            }
+        }
+    }
+    false
+}
 #[cfg(test)]
 mod tests {
     use super::*;

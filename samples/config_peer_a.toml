@@ -1,4 +1,16 @@
-peers = []
+peers = [
+    "10.0.1.20:8090"
+]
 
 [paths]
 a = "./samples/peer_a"
+
+[ignore]
+name = [
+    "*~",
+    ".*~"
+]
+path = [
+    "*node_modules*",
+    "*target*"
+]

@@ -4,7 +4,7 @@ use notify::{watcher, DebouncedEvent, Error, RecommendedWatcher, RecursiveMode, 
 use tokio::sync::mpsc::Sender;
 
 use super::{file_events_buffer::FileEventsBuffer, FileAction, SyncEvent};
-use crate::{config::Config, deletion_tracker::DeletionTracker, fs::FileInfo};
+use crate::{config::Config, config::Ignore, deletion_tracker::DeletionTracker, fs::FileInfo};
 
 pub(crate) struct FileWatcher {
     event_sender: Sender<SyncEvent>,
@@ -55,7 +55,8 @@ impl FileWatcher {
 
                     tokio::spawn(async move {
                         if let Some(event) =
-                            map_to_sync_event(event, &config.paths, &events_buffer).await
+                            map_to_sync_event(event, &config.paths, &config.ignore, &events_buffer)
+                                .await
                         {
                             sync_event_sender.send(event).await.ok();
                         }
@@ -98,6 +99,7 @@ fn get_alias_for_path(
 async fn map_to_sync_event<'b>(
     event: DebouncedEvent,
     paths: &HashMap<String, PathBuf>,
+    ignore: &Ignore,
     events_buffer: &'b FileEventsBuffer,
 ) -> Option<SyncEvent> {
     match event {
@@ -106,6 +108,9 @@ async fn map_to_sync_event<'b>(
                 return None;
             }
 
+            if crate::fs::is_ignored(&file_path, &ignore) {
+                return None;
+            }
             let (alias, root) = get_alias_for_path(&file_path, paths)?;
             let metadata = file_path.metadata().ok()?;
             let relative_path = file_path.strip_prefix(&root).ok()?;
@@ -126,6 +131,9 @@ async fn map_to_sync_event<'b>(
                 return None;
             }
 
+            if crate::fs::is_ignored(&file_path, &ignore) {
+                return None;
+            }
             let (alias, root) = get_alias_for_path(&file_path, paths)?;
             let metadata = file_path.metadata().ok()?;
             let relative_path = file_path.strip_prefix(&root).ok()?;
@@ -147,6 +155,9 @@ async fn map_to_sync_event<'b>(
                 return None;
             }
 
+            if crate::fs::is_ignored(&file_path, &ignore) {
+                return None;
+            }
             let (alias, root) = get_alias_for_path(&file_path, paths)?;
             let relative_path = file_path.strip_prefix(&root).ok()?;
 
@@ -167,6 +178,9 @@ async fn map_to_sync_event<'b>(
                 return None;
             }
 
+            if crate::fs::is_ignored(&src_path, &ignore) {
+                return None;
+            }
             let (alias, root) = get_alias_for_path(&src_path, paths)?;
             let relative_path = src_path.strip_prefix(&root).ok()?;
             let src_file = FileInfo::new_deleted(alias.clone(), relative_path.to_owned(), None);
