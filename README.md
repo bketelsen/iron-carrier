@@ -59,6 +59,11 @@ a = "./samples/peer_a"
 - zero-conf for network sincronization
 - Windows and Mac compatibility
 
+# Static build for (Synology) NAS
+```
+rustup target add x86_64-unknown-linux-musl
+cargo build --release --target=x86_64-unknown-linux-musl
+```
 
 # Motivation
 I have decided to implement this project as a way to learn Rust. I strongly believe the best way to learn a programing language is to use it in a real life scenario  
